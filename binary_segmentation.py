@@ -71,20 +71,30 @@ def region_grow_bfs(image):
     return labels, labeled
 
 def seq_label_alg(image):
+    """ Labels each part of the image row by row
+
+    Algorithm labels each pixel based on the labeling of it's neighbors (defined by 6-C)    
+    """
     labeled = np.zeros_like(image)
     equiv_table = {0:0}
     label = 1
     n, m = image.shape
 
     def valid_pos(i, j):
+        """Checks if indices are in bounds"""
         return 0<=i<n and 0<=j<m
     
     def find(a):
+        """Finds parent of current label"""
         if equiv_table[a] != a:
             equiv_table[a] = find(equiv_table[a])
         return equiv_table[a]
     
     def union(a, b):
+        """Merges two labels in equivalence table
+        
+        Assigns smallest label value as true parent
+        """
         a_parent = find(a)
         b_parent = find(b)
         if a_parent == b_parent:
@@ -103,22 +113,27 @@ def seq_label_alg(image):
                 if valid_pos(i-1,j-1) and labeled[i-1, j-1]:
                     labeled[i, j] = labeled[i-1, j-1]
 
+                # checks both pos B and pos C 
                 elif (valid_pos(i-1, j) and labeled[i-1, j] and
                       valid_pos(i, j - 1) and labeled[i, j - 1]):
                     labeled[i, j] = min(labeled[i-1, j], labeled[i, j-1])
                     union(labeled[i-1, j], labeled[i, j-1])
 
+                # checks only pos B
                 elif valid_pos(i-1, j) and labeled[i-1, j]:
                     labeled[i, j] = labeled[i-1, j]
 
+                # checks only pos C
                 elif valid_pos(i, j - 1) and labeled[i, j - 1]:
                     labeled[i, j] = labeled[i, j - 1]
                 
+                # creates new label
                 else:
                     labeled[i, j] = label
                     equiv_table[label] = label
                     label += 1
 
+    # second pass to finalize labels
     labels = set([0])
     for i in range(n):
         for j in range(m):
@@ -128,6 +143,12 @@ def seq_label_alg(image):
     return labels, labeled
 
 def color_segmentations(labels, labeled_image):
+    """Returns new image with unique colors for each object
+    
+    Parameters
+    * labels(set) - a set of all unique labels
+    * labeled_image(ndarrray) - matrix with shape (H, W) where pos[i, j] = label
+    """
     n,m = labeled_image.shape
     colors = {l: tuple(np.random.rand(3)) for l in labels}
     colored = np.zeros(shape=(n, m, 3))

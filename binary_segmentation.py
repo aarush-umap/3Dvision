@@ -142,12 +142,78 @@ def seq_label_alg(image):
 
     return labels, labeled
 
+def skeletonization(image):
+    '''Thins image using Zhang Suen's thinning algorithm
+    
+    Parameters
+    * image (ndarray) - binary matrix with shape (H,W)
+
+    Returns
+    * frames (list) - a collection of iterations in thinning process
+    '''
+
+    frames = []
+    H, W = image.shape
+    image = np.pad(image, (1,1), mode='constant', constant_values=(0,0))
+
+    def get_neighbors(i, j):
+        return np.array([
+            image[i - 1, j], # P2
+            image[i - 1, j + 1], # P3
+            image[i, j + 1], # P4
+            image[i + 1, j + 1], # P5
+            image[i + 1, j], # P6
+            image[i + 1, j - 1], # P7
+            image[i, j - 1], # P8
+            image[i - 1, j - 1]  # P9
+        ])
+    
+    def get_transitions(neighbors):
+        n = neighbors + neighbors[0]
+        count = 0
+        for n1, n2 in zip(n, n[1:]):
+            if n1 == 0 and n2 == 1:
+                count += 1
+
+        return count
+
+    changed_first = changed_second = [('flag', 'flag')]
+    while changed_first or changed_second:
+        changed_first = []
+        for i in range(1, H):
+            for j in range(1, W):
+                if image[i,j] == 1:
+                    neighbors = get_neighbors(i, j)
+                    if (2 <= len(neighbors[neighbors == 1]) <= 6 and
+                        get_transitions(neighbors) == 1 and
+                        neighbors[0] * neighbors[2] * neighbors[4] == 0 and
+                        neighbors[2] * neighbors[4] * neighbors[6] == 0 ):
+                        changed_first.append((i, j))
+        for i, j in changed_first:
+            image[i, j] = 0
+
+
+        changed_second = []
+        for i in range(1, H):
+            for j in range(1, W):
+                if image[i,j] == 1:
+                    neighbors = get_neighbors(i, j)
+                    if (2 <= len(neighbors[neighbors == 1]) <= 6 and
+                        get_transitions(neighbors) == 1 and
+                        neighbors[0] * neighbors[2] * neighbors[6] == 0 and
+                        neighbors[0] * neighbors[4] * neighbors[6] == 0 ):
+                        changed_second.append((i, j))
+        for i, j in changed_second:
+            image[i, j] = 0       
+
+    return image[1:H, 1:W] 
+
 def color_segmentations(labels, labeled_image):
     """Returns new image with unique colors for each object
     
     Parameters
-    * labels(set) - a set of all unique labels
-    * labeled_image(ndarrray) - matrix with shape (H, W) where pos[i, j] = label
+    * labels (set) - a set of all unique labels
+    * labeled_image (ndarrray) - matrix with shape (H, W) where pos[i, j] = label
     """
     n,m = labeled_image.shape
     colors = {l: tuple(np.random.rand(3)) for l in labels}
